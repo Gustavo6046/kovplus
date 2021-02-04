@@ -22,7 +22,7 @@ double KovPlusChain::assess(const std::vector<int> &tokens, const Assessor &asse
 
 	while (exp_i < assessment_window_width) {
 		if (tokens[i] == expected[exp_i]) {
-			double weight = 1.0 / (1.0 + std::sqrt(1 + (word_count.find(tokens[i]) != word_count.end() ? word_count.at(tokens[i]) : 0) * std::abs(assessment_window_width - exp_i)));
+			double weight = 1.0 / (1.0 + std::sqrt(1 + std::sqrt((word_count.find(tokens[i]) != word_count.end() ? word_count.at(tokens[i]) : 0)) * std::abs(assessment_window_width - exp_i)));
 			assessment += weight;
 		}
 
