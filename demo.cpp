@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (argc) {
-		std::cerr << "Parsed " << line_count << " lines, now operating on stdin and stdout.";
+		std::cerr << "Parsed " << line_count << " lines, now operating on stdin and stdout.\n";
 	}
 
 	// main query-respond loop
