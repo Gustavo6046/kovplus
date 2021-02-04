@@ -5,7 +5,7 @@
 
 
 int main(int argc, char **argv) {
-	KovPlusChain my_chain(10);
+	KovPlusChain my_chain(16);
 
 	int line_count = 0;
 
