@@ -37,6 +37,7 @@ int main(int argc, char **argv) {
 
 	for (std::string line; std::getline(std::cin, line);) {
 		if (line == "") {
+			std::cerr << "> ";
 			continue;
 		}
 	
