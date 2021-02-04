@@ -313,7 +313,7 @@ const std::string &KovPlusQuery::make_next() {
 }
 
 void KovPlusQuery::make_up_to(int limit) {
-	while (size < limit) {
+	while (my_size < limit) {
 		auto word = make_next();
 	
 		if (word == "") {
