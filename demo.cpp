@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 
 		KovPlusQuery query(my_chain, line, ' ', &rng);
 		
-		query.make_up_to(50);
+		query.make_up_to(query.size() + 75);
 
 		std::cout << query.str() << std::endl;
 	}
