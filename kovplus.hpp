@@ -217,12 +217,12 @@ private:
 	Sentence result;
 	std::vector<int> context;
 	std::default_random_engine *rng;
-	int size;
+	int my_size;
 	std::uniform_real_distribution<double> distribution;
 	bool own_rng = false;
 
 public:
-	KovPlusQuery(KovPlusChain &chain, std::string start, const char separator = ' ', std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+	KovPlusQuery(KovPlusChain &chain, std::string start, const char separator = ' ', std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), my_size(0), distribution(0.0, 1.0) {
 		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
 
 		own_rng = (rng == NULL);
@@ -235,7 +235,7 @@ public:
 		}
 	}
 
-	KovPlusQuery(KovPlusChain &chain, std::vector<int> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+	KovPlusQuery(KovPlusChain &chain, std::vector<int> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), my_size(0), distribution(0.0, 1.0) {
 		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
 
 		own_rng = (rng == NULL);
@@ -245,7 +245,7 @@ public:
 		}
 	}
 
-	KovPlusQuery(KovPlusChain &chain, std::vector<std::string> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+	KovPlusQuery(KovPlusChain &chain, std::vector<std::string> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), my_size(0), distribution(0.0, 1.0) {
 		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
 
 		own_rng = (rng == NULL);
@@ -262,15 +262,13 @@ public:
 	}
 
 	void add_context(std::string word) {
-		context.push_back(bag.get(word));
-		result.append(word);
-		size++;
+		add_context(bag.get(word));
 	}
 
 	void add_context(int word) {
 		context.push_back(word);
 		result.append(word);
-		size++;
+		my_size++;
 	}
 
 	std::string str() const {
@@ -279,6 +277,10 @@ public:
 	
 	const Sentence &get() const {
 		return result;
+	}
+
+	int size() const {
+		return my_size;
 	}
 
 	const std::string &make_next();
