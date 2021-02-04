@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 		
 		query.make_up_to(query.size() + 75);
 
-		std::cout << query.str() << std::endl;
+		std::cout << query.str() << "\n";
 	}
 
 	return 0;

@@ -181,7 +181,7 @@ const std::string &KovPlusQuery::make_next() {
 		}
 	}
 
-	//std::cerr << "Warning: tally-based selection on '" << bag.get(context.back()) << "' gone wrong - selection " << selection << " but only went up to " << total_tally << std::endl;
+	//std::cerr << "Warning: tally-based selection on '" << bag.get(context.back()) << "' gone wrong - selection " << selection << " but only went up to " << total_tally << "\n";
 	return NULL_TOKEN;
 }
 
