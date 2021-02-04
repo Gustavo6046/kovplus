@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
 	// main query-respond loop
 	std::default_random_engine rng;
 
+	std::cerr << "> ";
+
 	for (std::string line; std::getline(std::cin, line);) {
 		if (line == "") {
 			continue;
@@ -44,7 +46,9 @@ int main(int argc, char **argv) {
 		
 		query.make_up_to(query.size() + 75);
 
+		std::cerr << ": ";
 		std::cout << query.str() << "\n";
+		std::cerr << "> ";
 	}
 
 	return 0;
