@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <deque>
 
 
 class WordBag {
@@ -136,7 +137,9 @@ private:
 
 public:
 	SentenceCursor(SentenceView view, int start = 0, int end = -1) : view(view), curr(start), end(end) {
-		update_self();
+		if (has()) {
+			update_self();
+		}
 	}
 
 	int id() const {
@@ -164,57 +167,19 @@ public:
 	}
 };
 
-class AttentionAssessor {
-private:
-	std::vector<int> expected;
-	std::vector<std::string> expected_words;
-	double strength;
-	int width;
-
-public:
-	int get_expected_word(int index) {
-		return expected[index];
-	}
-
-	AttentionAssessor(SentenceView expected_ctx, double strength = 1.0)  : strength(strength), width(expected_ctx.size()) {
-		for (auto iter = expected_ctx.iterator(); iter.has(); iter.next()) {
-			expected.push_back(iter.id());
-			expected_words.push_back(iter.token());
-		}
-	}
-
-	AttentionAssessor(SentenceView &expected_ctx, double strength = 1.0) : strength(strength), width(expected_ctx.size()) {
-		for (auto iter = expected_ctx.iterator(); iter.has(); iter.next()) {
-			expected.push_back(iter.id());
-			expected_words.push_back(iter.token());
-		}
-	}
-
-	double assess(const SentenceView &tokens);
-	double assess(const std::vector<int> &tokens);
-};
-
-class LogEntry {
-public:
-	Sentence response;
-
-	LogEntry(Sentence response) : response(response) {}
-
-	AttentionAssessor get_assessor(int index, int width, double strength = 1.0) {
-		return AttentionAssessor(response.slice(std::max(0, index - width), index), strength);
-	}
-};
-
 class KovPlusQuery;
+
+struct Assessor {
+	double strength;
+	std::vector<int> context;
+};
 
 class KovPlusChain {
 private:
 	WordBag bag;
-	std::vector<LogEntry> responses;
-	std::unordered_map<int, std::unordered_map<int, std::vector<AttentionAssessor>>> response_assessment_index;
+	std::unordered_map<int, std::unordered_map<int, std::vector<Assessor>>> response_assessment_index;
+	std::unordered_map<int, int> word_count;
 	int assessment_window_width;
-
-	void process_registered_response(LogEntry &rle, double strength = 1.0);
 
 public:
 	KovPlusChain(int assessment_window_width) : assessment_window_width(assessment_window_width) {}
@@ -224,9 +189,12 @@ public:
 	}
 
 	void add_sentence(std::string sentence, const char separator = ' ', double strength = 1.0);
+
 	bool can_assess(const std::vector<int> &from) const;
 	bool can_assess(const std::string &from, const char separator) const;
-	std::pair<double, std::vector<std::pair<double, int>>> get_assessments(const std::vector<int> &from) const;
+
+	double assess(const SentenceView &tokens, const Assessor &assessor) const;
+	double assess(const std::vector<int> &tokens, const Assessor &assessor) const;
 
 	double get_assessment(const std::vector<int> &from, int to) const;
 	double get_assessment(const std::string &from, int to, const char separator) const;
@@ -239,7 +207,7 @@ public:
 		return get_assessment(from, bag.get(to), separator);
 	}
 
-	const LogEntry &fetch_log(int index) const;
+	std::pair<double, std::vector<std::pair<double, int>>> get_assessments(const std::vector<int> &from) const;
 };
 
 class KovPlusQuery {

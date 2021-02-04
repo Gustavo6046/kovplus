@@ -129,40 +129,15 @@ void SentenceCursor::update_self() {
 	curr_id = view.token_id(curr);
 	curr_token = &view.token(curr);
 }
-	
-// AttentionAssessor
-double AttentionAssessor::assess(const SentenceView &tokens) {
+
+// KovPlusChain
+double KovPlusChain::assess(const std::vector<int> &tokens, const Assessor &assessor) const {
 	double assessment = 0.0;
 
 	int i = 0;
 	int exp_i = 0;
 
-	if (tokens.size() < (int) expected.size()) {
-		exp_i = expected.size() - tokens.size();
-	}
-
-	else {
-		i = tokens.size() - expected.size();
-	}
-
-	while (exp_i < width) {
-		if (tokens.token_id(i) == expected[exp_i]) {
-			double weight = (double) width / (1.0 + std::sqrt(width - exp_i));
-			assessment += weight;
-		}
-
-		i++;
-		exp_i++;
-	}
-
-	return assessment * strength;
-}
-
-double AttentionAssessor::assess(const std::vector<int> &tokens) {
-	double assessment = 0.0;
-
-	int i = 0;
-	int exp_i = 0;
+	auto expected = assessor.context;
 
 	if (tokens.size() < expected.size()) {
 		exp_i = expected.size() - tokens.size();
@@ -172,9 +147,9 @@ double AttentionAssessor::assess(const std::vector<int> &tokens) {
 		i = tokens.size() - expected.size();
 	}
 
-	while (exp_i < width) {
+	while (exp_i < assessment_window_width) {
 		if (tokens[i] == expected[exp_i]) {
-			double weight = (double) width / (1.0 + std::sqrt(width - exp_i));
+			double weight = 1.0 / (1.0 + std::sqrt(1 + (word_count.find(tokens[i]) != word_count.end() ? word_count.at(tokens[i]) : 0) * std::abs(assessment_window_width - exp_i)));
 			assessment += weight;
 		}
 
@@ -182,27 +157,40 @@ double AttentionAssessor::assess(const std::vector<int> &tokens) {
 		exp_i++;
 	}
 
-	return assessment * strength;
+	return assessment * assessor.strength;
 }
 
-// KovPlusChain
+double KovPlusChain::assess(const SentenceView &tokens, const Assessor &assessor) const {
+	std::vector<int> token_ids;
+
+	for (int i = 0; i < tokens.size(); i++) {
+		token_ids.push_back(tokens.token_id(i));
+	}
+
+	return assess(token_ids, assessor);
+}
+
 void KovPlusChain::add_sentence(std::string sentence, const char separator, double strength) {
-	responses.push_back(LogEntry(Sentence(bag, sentence, separator)));
+	Sentence rle = Sentence(bag, sentence, separator);
 
-	process_registered_response(responses.back(), strength);
-}
-
-void KovPlusChain::process_registered_response(LogEntry &rle, double strength) {
-	for (auto resp_iter = rle.response.iterator(); resp_iter.has(); resp_iter.next()) {
+	for (auto resp_iter = rle.iterator(); resp_iter.has(); resp_iter.next()) {
+		word_count[resp_iter.id()]++;
+	
 		if (resp_iter.has_next()) {
-			AttentionAssessor new_assessor = rle.get_assessor(resp_iter.curr_index() + 1, assessment_window_width, strength);
+			Assessor new_assessor;
+
+			new_assessor.strength = strength;
+
+			for (int ctx_i = std::max(0, resp_iter.curr_index() - assessment_window_width); ctx_i <= resp_iter.curr_index(); ctx_i++) {
+				new_assessor.context.push_back(rle.token_id(ctx_i));
+			}
 		
 			int from_word = resp_iter.id();
 			int to_word = resp_iter.offset(1).id();
 
-			std::unordered_map<int, std::vector<AttentionAssessor>> &to_word_index = response_assessment_index.emplace(from_word, std::unordered_map<int, std::vector<AttentionAssessor>>()).first->second;
+			auto &to_word_index = response_assessment_index.emplace(from_word, std::unordered_map<int, std::vector<Assessor>>()).first->second;
 
-			std::vector<AttentionAssessor> &answer_list = to_word_index.emplace(to_word, std::vector<AttentionAssessor>()).first->second;
+			auto &answer_list = to_word_index.emplace(to_word, std::vector<Assessor>()).first->second;
 
 			answer_list.push_back(new_assessor);
 		}
@@ -226,7 +214,7 @@ double KovPlusChain::get_assessment(const std::vector<int> &from, int to) const 
 	auto assessors = to_index[to];
 
 	for (auto assessor : assessors) {
-		tally += assessor.assess(from);
+		tally += assess(from, assessor);
 	}
 
 	return tally;
@@ -284,7 +272,7 @@ std::pair<double, std::vector<std::pair<double, int>>> KovPlusChain::get_assessm
 		double tally = 0.0;
 
 		for (auto assessor : assessors) {
-			double assessment = assessor.assess(from);
+			double assessment = assess(from, assessor);
 			tally += assessment;
 		}
 
@@ -332,8 +320,4 @@ void KovPlusQuery::make_up_to(int limit) {
 			break;
 		}
 	}
-}
-
-const LogEntry &KovPlusChain::fetch_log(int index) const {
-		return responses[index];
 }
