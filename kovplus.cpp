@@ -85,8 +85,8 @@ SentenceView Sentence::slice(int start, int end) {
 	return SentenceView(*this, start, end);
 }
 
-SentenceIterator Sentence::iterator(int start, int end) {
-	return SentenceIterator(view(), start, end);
+SentenceCursor Sentence::iterator(int start, int end) {
+	return SentenceCursor(view(), start, end);
 }
 
 // SentenceView
@@ -106,8 +106,26 @@ std::string SentenceView::str() const {
 	return stringifier.str();
 }
 
-SentenceIterator SentenceView::iterator(int start, int end) {
-	return SentenceIterator(*this, start, end);
+SentenceCursor SentenceView::iterator(int start, int end) {
+	return SentenceCursor(*this, start, end);
+}
+
+// SentenceCursor
+bool SentenceCursor::has() const {
+	return curr < view.size() && (end == -1 || curr < end);
+}
+	
+void SentenceCursor::next() {
+	curr++;
+
+	if (has()) {
+		update_self();
+	}
+}
+
+void SentenceCursor::update_self() {
+	curr_id = view.token_id(curr);
+	curr_token = &view.token(curr);
 }
 	
 // AttentionAssessor

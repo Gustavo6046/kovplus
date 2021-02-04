@@ -22,7 +22,7 @@ public:
 };
 
 class SentenceView;
-class SentenceIterator;
+class SentenceCursor;
 
 class Sentence {
 private:
@@ -66,7 +66,7 @@ public:
 
 	SentenceView view();
 	SentenceView slice(int start = 0, int end = -1);
-	SentenceIterator iterator(int start = 0, int end = -1);
+	SentenceCursor iterator(int start = 0, int end = -1);
 };
 
 class SentenceView {
@@ -104,33 +104,39 @@ public:
 
 	std::string str() const;
 
-	SentenceIterator iterator(int start = 0, int end = -1);
+	SentenceCursor iterator(int start = 0, int end = -1);
 };
 
-class SentenceIterator {
+class SentenceCursor {
 private:
 	SentenceView view;
 	int curr;
 	int end;
 
+	int curr_id;
+	const std::string *curr_token;
+
+	void update_self();
+
 public:
-	SentenceIterator(SentenceView view, int start = 0, int end = -1) : view(view), curr(start), end(end) {}
+	SentenceCursor(SentenceView view, int start = 0, int end = -1) : view(view), curr(start), end(end) {
+		update_self();
+	}
 
 	int id() const {
-		return view.token_id(curr); 
+		return curr_id;
 	}
 	
-	std::string token() const {
-		return view.token(curr);
+	const std::string &token() const {
+		return *curr_token;
 	}
 
 	void set_token(std::string token) {
 		view.set_token(curr, token);
 	}
 	
-	bool next() {
-		return curr < view.size() && (end == -1 || curr < end);
-	}
+	bool has() const;
+	void next();
 };
 
 class AttentionAssessor {
