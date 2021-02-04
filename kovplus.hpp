@@ -15,13 +15,14 @@ private:
 public:
 	WordBag();
 
-	const std::string &get(int index);
-	int get(std::string token);
+	const std::string &get(int index) const;
+	int get(std::string token) const;
 
 	int add(std::string token);
 };
 
 class SentenceView;
+class SentenceIterator;
 
 class Sentence {
 private:
@@ -34,28 +35,38 @@ public:
 	Sentence(WordBag &bag, std::vector<int> tokens, const char separator = ' ');
 	Sentence(WordBag &bag, const std::string tokens, const char separator = ' ');
 
-	WordBag &get_bag() {
+	WordBag &get_bag() const {
 		return bag;
 	}
 	
-	int size() {
+	int size() const {
 		return my_size;
 	}
 
-	const std::string &token(int index) {
+	const std::string &token(int index) const {
 		return bag.get(tokens[index]);
 	}
 	
-	int token_id(int index) {
+	int token_id(int index) const {
 		return tokens[index];
 	}
+
+	void set_token_id(int index, int token) {
+		tokens[index] = token;
+	}
+
+	void set_token(int index, std::string token) {
+		tokens[index] = bag.add(token);
+	}
 	
-	std::string str();
+	std::string str() const;
+
 	void append(int index);
 	void append(std::string token);
 
 	SentenceView view();
 	SentenceView slice(int start = 0, int end = -1);
+	SentenceIterator iterator(int start = 0, int end = -1);
 };
 
 class SentenceView {
@@ -67,43 +78,58 @@ private:
 public:
 	SentenceView(Sentence &sentence, int start, int end) : sentence(sentence), start(start), end(end) {}
 	
-	const std::string &token(int index) {
+	const std::string &token(int index) const {
 		return sentence.token(index + start);
 	}
 	
-	int token_id(int index) {
+	int token_id(int index) const {
 		return sentence.token_id(index + start);
 	}
+
+	void set_token_id(int index, int token) {
+		sentence.set_token_id(index + start, token);
+	}
+
+	void set_token(int index, std::string token) {
+		sentence.set_token(index + start, token);
+	}
 	
-	int size() {
+	int size() const {
 		return end - start;
 	}
 
-	WordBag &get_bag() {
+	WordBag &get_bag() const {
 		return sentence.get_bag();
 	}
 
-	std::string str();
+	std::string str() const;
+
+	SentenceIterator iterator(int start = 0, int end = -1);
 };
 
 class SentenceIterator {
 private:
-	SentenceView &view;
+	SentenceView view;
 	int curr;
+	int end;
 
 public:
-	SentenceIterator(SentenceView &view, int curr) : view(view), curr(curr) {}
+	SentenceIterator(SentenceView view, int start = 0, int end = -1) : view(view), curr(start), end(end) {}
 
-	int id() {
+	int id() const {
 		return view.token_id(curr); 
 	}
 	
-	std::string token() {
+	std::string token() const {
 		return view.token(curr);
+	}
+
+	void set_token(std::string token) {
+		view.set_token(curr, token);
 	}
 	
 	bool next() {
-		return (curr++) < view.size();
+		return curr < view.size() && (end == -1 || curr < end);
 	}
 };
 

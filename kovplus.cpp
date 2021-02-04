@@ -12,7 +12,7 @@ WordBag::WordBag() {
 	add("");
 }
 
-const std::string &WordBag::get(int index) {
+const std::string &WordBag::get(int index) const {
 	if (index == -1) {
 		return NULL_TOKEN;
 	}
@@ -20,7 +20,7 @@ const std::string &WordBag::get(int index) {
 	return token_list.at(index);
 }
 
-int WordBag::get(std::string token) {
+int WordBag::get(std::string token) const {
 	return token_index.at(token);
 }
 
@@ -53,7 +53,7 @@ Sentence::Sentence(WordBag &bag, const std::string tokens, const char separator)
 	}
 }
 
-std::string Sentence::str() {
+std::string Sentence::str() const {
 	std::ostringstream stringifier;
 
 	for (int i = 0; i < my_size; i++) {
@@ -85,8 +85,12 @@ SentenceView Sentence::slice(int start, int end) {
 	return SentenceView(*this, start, end);
 }
 
+SentenceIterator Sentence::iterator(int start, int end) {
+	return SentenceIterator(view(), start, end);
+}
+
 // SentenceView
-std::string SentenceView::str() {
+std::string SentenceView::str() const {
 	std::ostringstream stringifier;
 
 	int my_size = size();
@@ -100,6 +104,10 @@ std::string SentenceView::str() {
 	}
 
 	return stringifier.str();
+}
+
+SentenceIterator SentenceView::iterator(int start, int end) {
+	return SentenceIterator(*this, start, end);
 }
 	
 // AttentionAssessor
