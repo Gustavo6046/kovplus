@@ -20,7 +20,9 @@ int main(int argc, char **argv) {
 			my_chain.add_sentence(line);
 			line_count++;
 
-			std::cerr << "Parsed lines: " << line_count << "\r";
+			if (line_count < 200 || line_count % 3 == 0) {
+				std::cerr << "Parsed lines: " << line_count << "\r";
+			}
 		}
 	}
 
