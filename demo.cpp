@@ -6,9 +6,9 @@
 int main() {
 	WordBag bag;
 
-	Sentence my_sentence = Sentence(bag, "Two rabbits gleefully jump around in the midst of moonlight");
+	Sentence my_sentence = Sentence(bag, "Two rabbits gleefully jump around in the midst of moonlight, playfully hopping over each other in turns");
 
-	for (int i = 0; i < my_sentence.size(); i++) {
-		std::cout << "(" << my_sentence.token_id(i) << ") " << my_sentence.token(i) << "\n";
+	for (auto iter = my_sentence.iterator(); iter.has(); iter.next()) {
+		std::cout << "(" << iter.id() << ") " << iter.token() << "\n";
 	}
 }
