@@ -1,10 +1,13 @@
 #ifndef INCLUDED_KOVPLUS_HPP
 #define INCLUDED_KOVPLUS_HPP
 
+#include <random>
+#include <cassert>
 #include <vector>
 #include <unordered_map>
-#include <sstream>
 #include <string>
+#include <iostream>
+#include <sstream>
 
 
 class WordBag {
@@ -29,10 +32,11 @@ private:
 	WordBag &bag;
 	std::vector<int> tokens;
 	int my_size;
-	const char separator;
 
 public:
-	Sentence(WordBag &bag, std::vector<int> tokens, const char separator = ' ');
+	Sentence(WordBag &bag) : bag(bag), my_size(0) {}
+
+	Sentence(WordBag &bag, std::vector<int> tokens);
 	Sentence(WordBag &bag, const std::string tokens, const char separator = ' ');
 
 	WordBag &get_bag() const {
@@ -77,6 +81,18 @@ private:
 
 public:
 	SentenceView(Sentence &sentence, int start, int end) : sentence(sentence), start(start), end(end) {}
+
+	int get_start() const {
+		return start;
+	}
+
+	int get_end() const {
+		return end;
+	}
+
+	const Sentence &get_sentence() const {
+		return sentence;
+	}
 	
 	const std::string &token(int index) const {
 		return sentence.token(index + start);
@@ -104,7 +120,7 @@ public:
 
 	std::string str() const;
 
-	SentenceCursor iterator(int start = 0, int end = -1);
+	SentenceCursor iterator();
 };
 
 class SentenceCursor {
@@ -134,32 +150,172 @@ public:
 	void set_token(std::string token) {
 		view.set_token(curr, token);
 	}
+
+	int curr_index() const {
+		return curr;
+	}
 	
 	bool has() const;
+	bool has_next() const;
 	void next();
+
+	SentenceCursor offset(int offs) const {
+		return SentenceCursor(view, curr + offs, end);
+	}
 };
 
 class AttentionAssessor {
 private:
-	WordBag &bag;
-	SentenceView expected;
+	std::vector<int> expected;
+	std::vector<std::string> expected_words;
 	double strength;
-	size_t width;
+	int width;
 
 public:
-	AttentionAssessor(WordBag &bag, SentenceView &expected, double strength = 1.0);
-	double assess(SentenceView &tokens);
+	int get_expected_word(int index) {
+		return expected[index];
+	}
+
+	AttentionAssessor(SentenceView expected_ctx, double strength = 1.0)  : strength(strength), width(expected_ctx.size()) {
+		for (auto iter = expected_ctx.iterator(); iter.has(); iter.next()) {
+			expected.push_back(iter.id());
+			expected_words.push_back(iter.token());
+		}
+	}
+
+	AttentionAssessor(SentenceView &expected_ctx, double strength = 1.0) : strength(strength), width(expected_ctx.size()) {
+		for (auto iter = expected_ctx.iterator(); iter.has(); iter.next()) {
+			expected.push_back(iter.id());
+			expected_words.push_back(iter.token());
+		}
+	}
+
+	double assess(const SentenceView &tokens);
+	double assess(const std::vector<int> &tokens);
 };
 
-class ResponseLog {
+class LogEntry {
+public:
+	Sentence response;
+
+	LogEntry(Sentence response) : response(response) {}
+
+	AttentionAssessor get_assessor(int index, int width, double strength = 1.0) {
+		return AttentionAssessor(response.slice(std::max(0, index - width), index), strength);
+	}
+};
+
+class KovPlusQuery;
+
+class KovPlusChain {
 private:
-	WordBag &bag;
-	std::vector<int> query;
-	std::vector<int> response;
+	WordBag bag;
+	std::vector<LogEntry> responses;
+	std::unordered_map<int, std::unordered_map<int, std::vector<AttentionAssessor>>> response_assessment_index;
+	int assessment_window_width;
+
+	void process_registered_response(LogEntry &rle, double strength = 1.0);
 
 public:
-	ResponseLog(std::vector<int> query, std::string response);
-	AttentionAssessor getAssessor(int index);
+	KovPlusChain(int assessment_window_width) : assessment_window_width(assessment_window_width) {}
+
+	WordBag &get_bag() {
+		return bag;
+	}
+
+	void add_sentence(std::string sentence, const char separator = ' ', double strength = 1.0);
+	bool can_assess(const std::vector<int> &from) const;
+	bool can_assess(const std::string &from, const char separator) const;
+	std::pair<double, std::vector<std::pair<double, int>>> get_assessments(const std::vector<int> &from) const;
+
+	double get_assessment(const std::vector<int> &from, int to) const;
+	double get_assessment(const std::string &from, int to, const char separator) const;
+	
+	double get_assessment(const std::vector<int> &from, std::string to) const {
+		return get_assessment(from, bag.get(to));
+	}
+
+	double get_assessment(const std::string &from, std::string to, const char separator) const {
+		return get_assessment(from, bag.get(to), separator);
+	}
+
+	const LogEntry &fetch_log(int index) const;
+};
+
+class KovPlusQuery {
+private:
+	KovPlusChain &chain;
+	WordBag &bag;
+	Sentence result;
+	std::vector<int> context;
+	std::default_random_engine *rng;
+	int size;
+	std::uniform_real_distribution<double> distribution;
+	bool own_rng = false;
+
+public:
+	KovPlusQuery(KovPlusChain &chain, std::string start, const char separator = ' ', std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
+
+		own_rng = (rng == NULL);
+	
+		std::istringstream start_reader(start);
+		std::string token;
+	
+		while (std::getline(start_reader, token, separator)) {
+			add_context(token);
+		}
+	}
+
+	KovPlusQuery(KovPlusChain &chain, std::vector<int> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
+
+		own_rng = (rng == NULL);
+	
+		for (auto word : start) {
+			add_context(word);
+		}
+	}
+
+	KovPlusQuery(KovPlusChain &chain, std::vector<std::string> start, std::default_random_engine *rng = NULL) : chain(chain), bag(chain.get_bag()), result(chain.get_bag()), size(0), distribution(0.0, 1.0) {
+		this->rng = (rng != NULL) ? rng : new std::default_random_engine();
+
+		own_rng = (rng == NULL);
+	
+		for (auto word : start) {
+			add_context(word);
+		}
+	}
+
+	~KovPlusQuery() {
+		if (own_rng) {
+			delete rng;
+		}
+	}
+
+	void add_context(std::string word) {
+		context.push_back(bag.get(word));
+		result.append(word);
+		size++;
+	}
+
+	void add_context(int word) {
+		context.push_back(word);
+		result.append(word);
+		size++;
+	}
+
+	std::string str() const {
+		return result.str();
+	}
+	
+	const Sentence &get() const {
+		return result;
+	}
+
+	const std::string &make_next();
+
+	void make_up_to(int limit);
 };
 
 

@@ -4,11 +4,19 @@
 
 
 int main() {
-	WordBag bag;
+	KovPlusChain my_chain(10);
 
-	Sentence my_sentence = Sentence(bag, "Two rabbits gleefully jump around in the midst of moonlight, playfully hopping over each other in turns");
+	std::default_random_engine rng;
 
-	for (auto iter = my_sentence.iterator(); iter.has(); iter.next()) {
-		std::cout << "(" << iter.id() << ") " << iter.token() << "\n";
+	for (std::string line; std::getline(std::cin, line);) {
+		my_chain.add_sentence(line);
+
+		KovPlusQuery query(my_chain, line, ' ', &rng);
+		
+		query.make_up_to(50);
+
+		std::cout << query.str() << std::endl;
 	}
+
+	return 0;
 }
