@@ -6,7 +6,7 @@ kovplus_sources = [
 	'src/kovplus.cpp'
 ]
 
-kovplus_include = []
+kovplus_include = [ 'src' ]
 
 kovplus_static = static_library('kovplus-static', sources: kovplus_sources, include_directories: kovplus_include)
 kovplus_shared = shared_library('kovplus', sources: kovplus_sources, include_directories: kovplus_include)
